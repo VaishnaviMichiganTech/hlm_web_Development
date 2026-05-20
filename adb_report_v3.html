@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FMVSS 108 ADB Compliance Report</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js">
+function safeGet(obj,key,fb){if(obj===null||obj===undefined)return fb!==undefined?fb:null;return obj[key]!==undefined?obj[key]:fb;}
+</script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Segoe UI', Arial, sans-serif;
+  font-size: 13px;
+  color: #1a1a1a;
+  background: #f0ede8;
+  line-height: 1.55;
+}
+
+@media print {
+  body { background: #fff; font-size: 11px; }
+  .no-print { display: none !important; }
+  .page-break { page-break-before: always; }
+  .sheet { box-shadow: none; border: 1px solid #ccc; margin-bottom: 14px; border-radius: 0; }
+  .top-bar { display: none; }
+  .print-header { display: block !important; }
+  img.plot-img { max-width: 100%; page-break-inside: avoid; }
+  .map-overlay { display: none !important; }
+}
+
+.top-bar {
+  background: #242424;
+  color: #f0f0f0;
+  padding: 11px 26px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  position: sticky;
+  top: 0;
+  z-index: 200;
+}
+.top-bar h1 { font-size: 15px; font-weight: 600; }
+.top-bar p  { font-size: 11px; color: #999; margin-top: 1px; }
+.top-controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.btn {
+  font-size: 12px; padding: 5px 12px;
+  border: 1px solid #555; border-radius: 4px;
+  background: #383838; color: #f0f0f0; cursor: pointer;
+  font-weight: 500;
+}
+.btn:hover { background: #c85515; border-color: #c85515; }
+.btn-primary { background: #c85515; border-color: #c85515; }
+.btn-primary:hover { background: #a84310; }
+
+.page-wrap {
+  max-width: 1060px;
+  margin: 0 auto;
+  padding: 20px 18px 60px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.print-header {
+  display: none;
+  margin-bottom: 14px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid #1a1a1a;
+}
+.print-header h1 { font-size: 20px; font-weight: 700; }
+.print-header p  { font-size: 12px; color: #555; margin-top: 3px; }
+
+.sheet {
+  background: #fff;
+  border: 1px solid #d4d0c8;
+  border-radius: 5px;
+  overflow: hidden;
+}
+.sheet-header {
+  background: #eceae4;
+  padding: 9px 18px;
+  border-bottom: 1px solid #d4d0c8;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+.sheet-header h2 {
+  font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.08em; color: #333;
+}
+.sheet-header .ref { font-size: 10px; color: #999; }
+.sheet-body { padding: 16px 20px; }
+
+/* Load section */
+.load-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px; align-items: end;
+}
+.field-group { display: flex; flex-direction: column; gap: 4px; }
+.field-label {
+  font-size: 10px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.06em; color: #666;
+}
+.field-group input[type="file"] {
+  font-size: 12px; padding: 5px 7px;
+  border: 1px solid #ccc; border-radius: 4px;
+  background: #fafafa; color: #1a1a1a;
+}
+.load-hint { font-size: 11px; color: #888; margin-top: 10px; line-height: 1.6; }
+code { font-family: 'Courier New', monospace; font-size: 11px; background: #f4f1ec; padding: 1px 4px; border-radius: 2px; }
+
+/* Scenario table */
+.sc-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.sc-table th {
+  background: #f5f2ec; font-weight: 700; color: #555;
+  text-transform: uppercase; letter-spacing: 0.05em; font-size: 10px;
+  padding: 7px 10px; border: 1px solid #ddd; text-align: left;
+}
+.sc-table td { padding: 8px 10px; border: 1px solid #ddd; }
+.sc-table .sc-num { font-weight: 700; color: #c85515; font-size: 16px; }
+
+/* Identification grid */
+.id-flex { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; flex-wrap: wrap; }
+.id-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(145px, 1fr)); gap: 12px; flex: 1; }
+.id-item .id-lbl { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #888; margin-bottom: 2px; }
+.id-item .id-val { font-size: 13px; }
+.id-item .id-val.mono { font-family: 'Courier New', monospace; font-size: 11px; color: #555; }
+
+/* Result badge */
+.result-badge {
+  font-size: 16px; font-weight: 800; letter-spacing: 0.10em;
+  padding: 8px 20px; border-radius: 4px; white-space: nowrap;
+}
+.badge-pass { background: #d8f0d8; color: #185518; }
+.badge-fail { background: #fde0de; color: #7a1818; }
+
+/* Tags */
+.tag { display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: 0.06em; padding: 2px 7px; border-radius: 3px; }
+.tag-pass { background: #d8f0d8; color: #185518; }
+.tag-fail { background: #fde0de; color: #7a1818; }
+.tag-warn { background: #fdefd6; color: #7a4400; }
+.tag-info { background: #e4ecf8; color: #1a3a78; }
+
+/* Check table */
+.check-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.check-table th {
+  background: #f5f2ec; padding: 7px 10px;
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.05em; color: #555; border: 1px solid #ddd; text-align: left;
+}
+.check-table td { padding: 8px 10px; border: 1px solid #ddd; vertical-align: top; }
+.check-table tr:nth-child(even) td { background: #faf8f4; }
+.check-table .ref-col { font-family: 'Courier New', monospace; font-size: 10px; color: #999; }
+
+/* Bin cards */
+.bin-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; margin-top: 12px; }
+.bin-card { border: 1px solid #ddd; border-radius: 4px; padding: 10px 12px; background: #faf8f4; }
+.bin-card .bc-range { font-size: 10px; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 3px; }
+.bin-card .bc-val   { font-size: 17px; font-weight: 700; }
+.bin-card .bc-limit { font-size: 11px; color: #999; margin-top: 1px; }
+
+/* Plot display */
+.plot-img { width: 100%; display: block; border: 1px solid #e4e0d8; border-radius: 4px; margin-top: 10px; background: #f8f6f2; }
+.plot-placeholder { display: flex; align-items: center; justify-content: center; min-height: 160px; border: 1px dashed #ccc; border-radius: 4px; color: #bbb; font-size: 12px; margin-top: 10px; background: #fafaf8; }
+
+/* Section rule */
+.sec-rule { height: 1px; background: #e4e0d8; margin: 16px 0 12px; }
+
+/* Chart labels */
+.chart-lbl { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: #555; margin-top: 18px; margin-bottom: 3px; }
+.chart-note { font-size: 11px; color: #888; line-height: 1.5; }
+
+/* Legend row */
+.legend-row { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 7px; font-size: 11px; color: #555; }
+.legend-row span { display: flex; align-items: center; gap: 5px; }
+.sw-line { width: 18px; height: 3px; border-radius: 1px; display: inline-block; }
+.sw-dot  { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+
+/* Map modal */
+.map-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,0.55); z-index: 900;
+  align-items: center; justify-content: center;
+}
+.map-overlay.open { display: flex; }
+.map-modal {
+  background: #fff; border-radius: 5px;
+  width: 92vw; max-width: 1000px; height: 82vh;
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.map-modal-hdr {
+  background: #242424; color: #f0f0f0;
+  padding: 9px 14px;
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 13px; font-weight: 600; flex-shrink: 0;
+}
+.map-close { background: none; border: none; color: #aaa; font-size: 20px; cursor: pointer; }
+.map-close:hover { color: #fff; }
+#sat-map { flex: 1; }
+
+/* Helpers */
+.mt-10 { margin-top: 10px; }
+.mt-14 { margin-top: 14px; }
+.text-muted { color: #888; }
+.mono { font-family: 'Courier New', monospace; font-size: 11px; }
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="top-bar no-print">
+  <div>
+    <h1>FMVSS 108 ADB Compliance Report</h1>
+    <p>American Center for Mobility -- Luminosity Test System</p>
+  </div>
+  <div class="top-controls">
+    <button class="btn btn-primary" onclick="window.print()">Print / Save PDF</button>
+  </div>
+</div>
+
+<div class="page-wrap">
+
+  <!-- Print header -->
+  <div class="print-header">
+    <h1>FMVSS 108 ADB Compliance Report</h1>
+    <p>American Center for Mobility -- Luminosity Test System &nbsp;|&nbsp; <span id="print-date"></span></p>
+  </div>
+
+  <!-- ============================================================
+       LOAD DATA
+  ============================================================ -->
+  <div class="sheet no-print">
+    <div class="sheet-header">
+      <h2>Load test data</h2>
+      <span class="ref">Select report_data.json produced by adb_process.py</span>
+    </div>
+    <div class="sheet-body">
+      <div class="load-grid">
+        <div class="field-group">
+          <div class="field-label">report_data.json (from adb_process.py)</div>
+          <input type="file" id="json-picker" accept=".json" onchange="onJsonLoad(event)">
+        </div>
+        <div class="field-group">
+          <div class="field-label">Plot folder (select all PNGs from output folder)</div>
+          <input type="file" id="img-picker" accept=".png,.jpg" multiple onchange="onImgsLoad(event)">
+        </div>
+      </div>
+      <p class="load-hint">
+        Run <code>python adb_process.py --csv mobile-NNN.csv --mat LuxRTK_*.mat --scenario N --vehicle "Ford F-150" --channels 2 3</code>
+        in the scenario folder. Then load the generated <code>report_data.json</code> and all <code>plot_*.png</code> files here.
+        Both files should be in the same output folder.
+      </p>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       SCENARIO PARAMETERS (Table XXII)
+  ============================================================ -->
+  <div class="sheet">
+    <div class="sheet-header">
+      <h2>Scenario parameters</h2>
+      <span class="ref">49 CFR 571.108 -- Table XXII Adaptive Driving Beam System Test Matrix</span>
+    </div>
+    <div class="sheet-body">
+      <table class="sc-table">
+        <thead>
+          <tr>
+            <th>Sc.</th>
+            <th>Orientation</th>
+            <th>Speed (kph)</th>
+            <th>Speed (mph)</th>
+            <th>Radius of curve (m)</th>
+            <th>Curve direction</th>
+            <th>Superelevation (%)</th>
+            <th>Measurement range (m)</th>
+          </tr>
+        </thead>
+        <tbody id="sc-row">
+          <tr><td colspan="8" class="text-muted" style="text-align:center;padding:10px;">Load report_data.json to populate</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       TEST IDENTIFICATION
+  ============================================================ -->
+  <div class="sheet">
+    <div class="sheet-header"><h2>Test identification</h2></div>
+    <div class="sheet-body">
+      <div class="id-flex">
+        <div class="id-grid">
+          <div class="id-item"><div class="id-lbl">Test number</div><div class="id-val" id="id-test">--</div></div>
+          <div class="id-item"><div class="id-lbl">Vehicle</div><div class="id-val" id="id-veh">--</div></div>
+          <div class="id-item"><div class="id-lbl">Scenario</div><div class="id-val" id="id-sc">--</div></div>
+          <div class="id-item"><div class="id-lbl">Date</div><div class="id-val" id="id-date">--</div></div>
+          <div class="id-item"><div class="id-lbl">Channels</div><div class="id-val" id="id-ch">--</div></div>
+          <div class="id-item"><div class="id-lbl">Generated</div><div class="id-val mono" id="id-gen">--</div></div>
+        </div>
+        <div id="overall-badge" class="result-badge badge-pass" style="visibility:hidden;">--</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       SECTION 1: REGULATION COMPLIANCE
+  ============================================================ -->
+  <div class="sheet page-break">
+    <div class="sheet-header">
+      <h2>Section 1 -- Regulation compliance</h2>
+      <span class="ref">S14.9.3.12 -- FMVSS 108</span>
+    </div>
+    <div class="sheet-body">
+
+      <!-- Check table -->
+      <table class="check-table">
+        <thead>
+          <tr>
+            <th style="width:20%">Check</th>
+            <th style="width:14%">Regulation ref.</th>
+            <th style="width:28%">Measured value</th>
+            <th style="width:24%">Limit</th>
+            <th style="width:14%">Result</th>
+          </tr>
+        </thead>
+        <tbody id="check-tbody">
+          <tr><td colspan="5" class="text-muted" style="text-align:center;padding:10px;">Load report_data.json</td></tr>
+        </tbody>
+      </table>
+
+      <!-- SPEED PLOT -->
+      <div class="sec-rule"></div>
+      <div class="chart-lbl">Speed vs range to fixture</div>
+      <div class="chart-note">
+        Speed (mph) across measurement distance range. FMVSS S14.9.3.12.1.2: vehicle must achieve and maintain scenario speed band
+        +/-1 mph prior to and throughout the measurement distance range.
+      </div>
+      <div id="wrap-speed-lux">
+        <div class="plot-placeholder">Speed + Lux plot loads after selecting plot_speed_lux.png</div>
+      </div>
+
+      <!-- GRADE PLOT -->
+      <div class="sec-rule"></div>
+      <div class="chart-lbl">Road grade vs range to fixture</div>
+      <div class="chart-note">
+        Grade (%) throughout measurement range. FMVSS limit: grade must not exceed +/-2% throughout measurement range.
+      </div>
+      <div id="wrap-grade-pitch">
+        <div class="plot-placeholder">Grade + Pitch plot loads after selecting plot_grade_pitch.png</div>
+      </div>
+
+      <!-- PITCH PLOT -->
+      <div class="sec-rule"></div>
+      <div class="chart-lbl">Vehicle pitch -- S14.9.3.12.2.1(c) exclusion diagnostic</div>
+      <div class="chart-note">
+        Average pitch computed over 15 m to scenario max range. Samples where |pitch - avg| exceeds 0.3 deg
+        are excluded from lux bin-max determination. Lux panels below each pitch panel show the same
+        excluded samples as red dots, and mark bin max before (black square) and after (colored triangle) exclusion.
+      </div>
+      <div class="legend-row mt-10">
+        <span><span class="sw-line" style="background:#2a6db5;"></span>Pitch (deg)</span>
+        <span><span class="sw-line" style="background:#c0392b;"></span>Avg pitch</span>
+        <span><span class="sw-line" style="background:#f5b4b0;height:10px;border-radius:2px;"></span>Exclusion band (avg +/-0.3 deg)</span>
+        <span><span class="sw-dot" style="background:#c0392b;"></span>Excluded samples</span>
+        <span><span style="font-size:13px;line-height:1;">&#9632;</span> Bin max before excl.</span>
+        <span><span style="font-size:13px;line-height:1;color:#2a7a2a;">&#9650;</span> Bin max after excl.</span>
+      </div>
+      <div id="wrap-pitch-diag">
+        <div class="plot-placeholder">Pitch diagnostic loads after selecting plot_pitch_diagnostic.png</div>
+      </div>
+
+      <!-- ROC -->
+      <div class="sec-rule"></div>
+      <div class="chart-lbl">Radius of curvature -- GPS path geometry</div>
+      <div class="chart-note" id="roc-note">
+        FMVSS S14.9.3.12.1.3: actual path must not deviate from nominal path by more than +/-0.5 m throughout measurement range.
+        Table XXII specifies the allowable radius of curvature for each scenario.
+        GPS coordinates rotated so vehicle travel aligns with +Y axis. Red hatched zone: no vehicle entry area.
+        Green square: measurement start. Red square: measurement end.
+      </div>
+      <div id="wrap-roc">
+        <div class="plot-placeholder">ROC geometry loads after selecting plot_roc.png</div>
+      </div>
+
+      <div class="chart-lbl" style="margin-top:18px;">Radius of curvature vs measurement distance</div>
+      <div class="chart-note">
+        Instantaneous distance from GPS path to fitted circle center plotted against range to fixture.
+        Shows how the path radius varies across the measurement segment relative to FMVSS ROC limits and the +/-0.5 m path tolerance band.
+      </div>
+      <div id="wrap-roc-dist">
+        <div class="plot-placeholder">ROC vs distance plot loads after selecting plot_roc_vs_distance.png</div>
+      </div>
+
+      <!-- Satellite map button -->
+      <div style="margin-top:14px; display:flex; align-items:center; gap:12px; flex-wrap:wrap;" class="no-print">
+        <button class="btn btn-primary" id="map-btn" onclick="openMap()" disabled>
+          Map path
+        </button>
+        <span class="text-muted" style="font-size:11px;" id="map-hint">
+          GPS points load from report_data.json.
+        </span>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ============================================================
+       SECTION 2: LUX PERFORMANCE
+  ============================================================ -->
+  <div class="sheet page-break">
+    <div class="sheet-header">
+      <h2>Section 2 -- Lux performance</h2>
+      <span class="ref">S14.9.3.12.2 -- Table XXI maximum illuminance</span>
+    </div>
+    <div class="sheet-body">
+
+      <!-- Bin summary cards -->
+      <div class="chart-lbl">Max illuminance per bin (after pitch exclusion, rounded to 0.1 lux per ASTM E29)</div>
+      <div class="bin-grid" id="bin-grid">
+        <div class="text-muted" style="font-size:12px;padding:8px 0;">Load report_data.json to see bin results</div>
+      </div>
+
+      <!-- Lux individual channels -->
+      <div class="sec-rule"></div>
+      <div class="chart-lbl">Illuminance vs range -- individual channels</div>
+      <div class="chart-note">
+        One plot per lux channel. Each shows illuminance against range to fixture with FMVSS Table XXI bin limits overlaid.
+        Red dots mark pitch-excluded samples (ineligible for bin-max per S14.9.3.12.2.1(c)).
+      </div>
+      <div class="legend-row mt-10" id="lux-legend-row">
+        <span><span class="sw-dot" style="background:#c0392b;"></span>Pitch-excluded samples</span>
+        <span><span class="sw-line" style="background:#aaa;border-top:2px dashed #aaa;height:0;"></span>FMVSS bin limits</span>
+      </div>
+      <div id="wrap-lux">
+        <div class="plot-placeholder">Lux plot loads after selecting plot_lux.png</div>
+      </div>
+
+      <!-- Speed + Lux composite -->
+      <div class="sec-rule"></div>
+      <div class="chart-lbl">Speed and illuminance composite</div>
+      <div class="chart-note">
+        Speed (mph) with FMVSS scenario speed band, then each lux channel with bin limits.
+        Confirms speed compliance alongside lux measurements.
+      </div>
+      <div id="wrap-speed-lux-2">
+        <div class="plot-placeholder">Speed + Lux plot loads after selecting plot_speed_lux.png</div>
+      </div>
+
+      <!-- Elevation -->
+      <div class="sec-rule"></div>
+      <div class="chart-lbl">Elevation profile</div>
+      <div id="wrap-elevation">
+        <div class="plot-placeholder">Elevation plot loads after selecting plot_elevation.png</div>
+      </div>
+
+      <!-- Lux compliance detail table -->
+      <div class="sec-rule"></div>
+      <div class="chart-lbl">Bin compliance detail</div>
+      <table class="check-table mt-10" id="lux-table">
+        <thead>
+          <tr>
+            <th>Channel</th>
+            <th>Bin (m)</th>
+            <th>FMVSS limit (lux)</th>
+            <th>Max before excl. (lux)</th>
+            <th>Max after excl. (lux)</th>
+            <th>Rounded (0.1 lux)</th>
+            <th>Result</th>
+          </tr>
+        </thead>
+        <tbody id="lux-tbody">
+          <tr><td colspan="7" class="text-muted" style="text-align:center;padding:10px;">Load report_data.json</td></tr>
+        </tbody>
+      </table>
+
+    </div>
+  </div>
+
+</div><!-- end page-wrap -->
+
+<!-- SATELLITE MAP MODAL -->
+<div class="map-overlay no-print" id="map-overlay">
+  <div class="map-modal">
+    <div class="map-modal-hdr">
+      <span id="map-title">Map path</span>
+      <button class="map-close" onclick="closeMap()">x</button>
+    </div>
+    <div id="sat-map"></div>
+  </div>
+</div>
+
+<script>
+function fmt(v, d) {
+  if (v === null || v === undefined || isNaN(Number(v))) return "N/A";
+  return Number(v).toFixed(d !== undefined ? d : 2);
+}
+
+// ----------------------------------------------------------------
+// State
+// ----------------------------------------------------------------
+let reportData = null;
+let imgMap     = {};       // filename -> object URL
+let leafletMap = null;
+
+// ----------------------------------------------------------------
+// File loaders
+// ----------------------------------------------------------------
+function onJsonLoad(evt) {
+  const file = evt.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      reportData = JSON.parse(e.target.result);
+      renderAll();
+    } catch(err) {
+      alert("Could not parse JSON: " + err.message);
+    }
+  };
+  reader.readAsText(file);
+}
+
+function onImgsLoad(evt) {
+  imgMap = {};
+  Array.from(evt.target.files).forEach(f => {
+    imgMap[f.name] = URL.createObjectURL(f);
+  });
+  // Re-render plots if JSON already loaded
+  if (reportData) renderPlots();
+}
+
+// ----------------------------------------------------------------
+// Render helpers
+// ----------------------------------------------------------------
+function tag(txt, cls) {
+  return `<span class="tag ${cls}">${txt}</span>`;
+}
+
+function pf(passed) {
+  return passed ? tag("PASS","tag-pass") : tag("FAIL","tag-fail");
+}
+
+function setImg(wrapId, filename, alt) {
+  const wrap = document.getElementById(wrapId);
+  if (!wrap) return;
+  const url = imgMap[filename];
+  if (url) {
+    wrap.innerHTML = `<img class="plot-img" src="${url}" alt="${alt}">`;
+  } else {
+    wrap.innerHTML = `<div class="plot-placeholder">File not found: ${filename}<br>Select all plot_*.png files from the output folder.</div>`;
+  }
+}
+
+// ----------------------------------------------------------------
+// RENDER ALL
+// ----------------------------------------------------------------
+function renderAll() {
+  if (!reportData) return;
+  const d = reportData;
+  const m = d.meta;
+  const sp = d.scenario_params;
+  const c  = d.compliance;
+
+  // Scenario table
+  const ranges = sp.fm_ranges.map(r => r[0]+"-"+r[1]).join(", ") + " m";
+  const rocStr = sp.roc === "Straight" ? "Straight" : sp.roc + " m";
+  document.getElementById("sc-row").innerHTML = `
+    <tr>
+      <td class="sc-num">${m.scenario}</td>
+      <td>${sp.direction} Direction</td>
+      <td>${sp.speed_min_kph}-${sp.speed_max_kph}</td>
+      <td>${sp.speed_min}-${sp.speed_max}</td>
+      <td>${rocStr}</td>
+      <td>${sp.curve_dir}</td>
+      <td>${sp.superelev}</td>
+      <td>${ranges}</td>
+    </tr>`;
+
+  // Identification
+  document.getElementById("id-test").textContent  = "Test " + m.test_num;
+  document.getElementById("id-veh").textContent   = m.vehicle;
+  document.getElementById("id-sc").textContent    = m.scenario + " -- " + sp.direction + " Direction, " + sp.curve_dir + " curve";
+  document.getElementById("id-date").textContent  = m.date;
+  document.getElementById("id-ch").textContent    = m.channels.map(c => "Ch"+c).join(", ");
+  document.getElementById("id-gen").textContent   = m.generated;
+
+  const badge = document.getElementById("overall-badge");
+  badge.style.visibility = "visible";
+  badge.textContent = c.overall_pass ? "PASS" : "FAIL";
+  badge.className = "result-badge " + (c.overall_pass ? "badge-pass" : "badge-fail");
+
+  // Check table
+  const roc = c.roc;
+  const hasRoc = roc && !safeGet(roc,'failed') && sp.roc !== "Straight";
+
+  let checkRows = `
+    <tr>
+      <td><strong>Test vehicle speed</strong></td>
+      <td class="ref-col">S14.9.3.12.1.2</td>
+      <td>Mean ${fmt(c.speed.mean_mph, 1)} mph (range ${fmt(c.speed.min_mph, 1)}-${fmt(c.speed.max_mph, 1)} mph throughout measurement segment)</td>
+      <td>${sp.speed_min}-${sp.speed_max} mph [${sp.speed_min_kph}-${sp.speed_max_kph} kph], +/-1 mph</td>
+      <td>${pf(c.speed.passed)}</td>
+    </tr>
+    <tr>
+      <td><strong>Road grade</strong></td>
+      <td class="ref-col">S14.9.3.12.2.1(b)</td>
+      <td>Mean ${fmt(c.grade.mean_pct, 2)}%, max |grade| ${fmt(c.grade.max_abs_pct, 2)}% (Butterworth-filtered, 2 m spacing)</td>
+      <td>+/-2% throughout measurement distance range</td>
+      <td>${pf(c.grade.passed)}</td>
+    </tr>
+    <tr>
+      <td><strong>Vehicle pitch exclusion</strong></td>
+      <td class="ref-col">S14.9.3.12.2.1(c)</td>
+      <td>Avg pitch ${fmt(c.pitch.avg_pitch, 3)} deg; band [${fmt(c.pitch.lower_thresh, 3)}, ${fmt(c.pitch.upper_thresh, 3)}] deg; ${c.pitch.n_excluded} of ${c.pitch.n_total} samples excluded from bin-max</td>
+      <td>|pitch - avg| must not exceed 0.3 deg; excluded samples ineligible for illuminance max</td>
+      <td>${c.pitch.n_excluded === 0 ? tag("PASS","tag-pass") : tag(c.pitch.n_excluded+" excl.","tag-warn")}</td>
+    </tr>`;
+
+  if (hasRoc) {
+    checkRows += `
+    <tr>
+      <td><strong>Radius of curvature</strong></td>
+      <td class="ref-col">S14.9.3.12.1.3, Table XXII</td>
+      <td>Fitted R = ${fmt(safeGet(roc,'R'), 1)} m (${safeGet(roc,'method')} fit, arc ${fmt(safeGet(roc,'arc_angle'), 1)} deg); max path deviation ${fmt(safeGet(roc,'max_resid_r'), 1)} m; RMS ${fmt(safeGet(roc,'rms_resid'), 4)} m</td>
+      <td>ROC ${sp.roc_min}-${sp.roc_max} m; deviation &lt;= 0.5 m (rounded to 0.1 m per ASTM E29)</td>
+      <td>${pf(safeGet(roc,'geo_pass') && safeGet(roc,'dev_pass'))}</td>
+    </tr>`;
+  } else {
+    checkRows += `
+    <tr>
+      <td><strong>Road geometry</strong></td>
+      <td class="ref-col">Table XXII</td>
+      <td>Straight section. No radius of curvature requirement for Scenario ${m.scenario}.</td>
+      <td>Straight</td>
+      <td>${tag("N/A","tag-info")}</td>
+    </tr>`;
+  }
+  checkRows += `
+    <tr>
+      <td><strong>Superelevation</strong></td>
+      <td class="ref-col">Table XXII</td>
+      <td>ACM test track: within 0-2% for all ADB test sections (verified by facility survey)</td>
+      <td>0-2%</td>
+      <td>${tag("PASS","tag-pass")}</td>
+    </tr>`;
+  document.getElementById("check-tbody").innerHTML = checkRows;
+
+  // Bin cards (worst channel per bin)
+  const binGrid = document.getElementById("bin-grid");
+  const luxEntries = Object.entries(c.lux);
+  binGrid.innerHTML = sp.fm_ranges.map((bin, bi) => {
+    let worst = -Infinity; let worstPassed = true;
+    luxEntries.forEach(([ch, bins]) => {
+      const b = bins[bi];
+      if (b && b.max_after_rounded > worst) {
+        worst = b.max_after_rounded;
+        worstPassed = b.passed;
+      }
+    });
+    const lim = sp.fm_limits[bi];
+    return `<div class="bin-card">
+      <div class="bc-range">${bin[0]}-${bin[1]} m</div>
+      <div class="bc-val" style="color:${worstPassed ? '#185518' : '#7a1818'}">${fmt(worst, 1)} lux</div>
+      <div class="bc-limit">limit ${lim} lux</div>
+      <div style="margin-top:6px;">${pf(worstPassed)}</div>
+    </div>`;
+  }).join("");
+
+  // Lux compliance table
+  let luxRows = "";
+  luxEntries.forEach(([ch, bins]) => {
+    bins.forEach(b => {
+      luxRows += `<tr>
+        <td>Ch${ch}</td>
+        <td>${b.d1}-${b.d2} m</td>
+        <td>${b.limit}</td>
+        <td>${b.max_before !== null ? fmt(b.max_before, 4) : "--"}</td>
+        <td>${b.max_after !== null ? fmt(b.max_after, 4) : "--"}</td>
+        <td style="font-weight:700;">${b.max_after_rounded !== null ? fmt(b.max_after_rounded, 1) : "--"}</td>
+        <td>${pf(b.passed)}</td>
+      </tr>`;
+    });
+  });
+  document.getElementById("lux-tbody").innerHTML = luxRows;
+
+  // Lux legend
+  const chColors = ["#d4601a","#2a6db5","#2a7a2a","#6a2abf","#4a4a4a"];
+  const legendExtra = m.channels.map((ch, i) =>
+    `<span><span class="sw-line" style="background:${chColors[i%chColors.length]};"></span>Lux Ch${ch}</span>`
+  ).join("");
+  document.getElementById("lux-legend-row").innerHTML =
+    legendExtra +
+    `<span><span class="sw-dot" style="background:#c0392b;"></span>Pitch-excluded</span>
+     <span><span class="sw-line" style="background:#888;border-top:2px dashed #888;height:0;"></span>FMVSS bin limits</span>`;
+
+  // GPS satellite map
+  if (d.gps_points && d.gps_points.length > 0) {
+    document.getElementById("map-btn").disabled = false;
+    document.getElementById("map-hint").textContent =
+      d.gps_points.length + " GPS points loaded.";
+    document.getElementById("map-title").textContent =
+      "Map path -- Scenario " + m.scenario + "  |  " + m.vehicle;
+  }
+
+  renderPlots();
+}
+
+function renderPlots() {
+  if (!reportData) return;
+  const plots = reportData.plots;
+  setImg("wrap-grade-pitch",  plots.grade_pitch,       "Grade and Pitch");
+  setImg("wrap-pitch-diag",   plots.pitch_diagnostic,  "Pitch Exclusion Diagnostic");
+  setImg("wrap-roc",          plots.roc,               "ROC Geometry");
+  setImg("wrap-roc-dist",     plots.roc_vs_distance,   "ROC vs Distance");
+  setImg("wrap-lux",          plots.lux,               "Illuminance vs Range");
+  setImg("wrap-speed-lux",    plots.speed_lux,         "Speed and Lux");
+  setImg("wrap-speed-lux-2",  plots.speed_lux,         "Speed and Lux composite");
+  setImg("wrap-elevation",    plots.elevation,         "Elevation Profile");
+}
+
+// ----------------------------------------------------------------
+// Satellite map
+// ----------------------------------------------------------------
+function openMap() {
+  if (!reportData || !reportData.gps_points.length) return;
+  document.getElementById("map-overlay").classList.add("open");
+
+  if (!leafletMap) {
+    leafletMap = L.map("sat-map");
+    L.tileLayer(
+      "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+      { attribution: "Tiles: Esri", maxZoom: 20 }
+    ).addTo(leafletMap);
+    L.tileLayer(
+      "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
+      { maxZoom: 20, opacity: 0.65 }
+    ).addTo(leafletMap);
+  }
+
+  // Clear old layers except tiles
+  leafletMap.eachLayer(l => { if (l instanceof L.Polyline || l instanceof L.CircleMarker || l instanceof L.Marker) leafletMap.removeLayer(l); });
+
+  const pts    = reportData.gps_points;
+  const ranges = reportData.gps_ranges || [];
+  const sp  = reportData.scenario_params;
+  const m   = reportData.meta;
+  const n   = pts.length;
+
+  const d_min = sp.fm_ranges[0][0];
+  const d_max = sp.max_range;
+
+  // Filter invalid coords
+  const validIdx = pts.map((_,i) => i).filter(i =>
+    Math.abs(pts[i][0]) > 0.001 && Math.abs(pts[i][1]) > 0.001
+  );
+  const validPts    = validIdx.map(i => pts[i]);
+  const validRanges = validIdx.map(i => ranges[i] !== undefined ? ranges[i] : null);
+  const nv = validPts.length;
+  if (nv < 2) { alert("Not enough valid GPS points."); return; }
+
+  // Split by actual signed range values stored in JSON
+  let preMeas = [], meas = [], postMeas = [];
+  const hasRanges = validRanges[0] !== null;
+
+  if (hasRanges) {
+    for (let i = 0; i < nv; i++) {
+      const r = validRanges[i];
+      if (r >= d_min && r <= d_max)  meas.push(validPts[i]);
+      else if (r > d_max)            preMeas.push(validPts[i]);
+      else                           postMeas.push(validPts[i]);
+    }
+  } else {
+    const s0 = Math.floor(nv * 0.10);
+    const s1 = Math.floor(nv * 0.70);
+    preMeas  = validPts.slice(0, s0);
+    meas     = validPts.slice(s0, s1);
+    postMeas = validPts.slice(s1);
+  }
+
+  if (preMeas.length > 1)
+    L.polyline(preMeas,  { color: "#1a1a1a", weight: 2.5, opacity: 0.75 }).addTo(leafletMap);
+  if (meas.length > 1) {
+    L.polyline(meas, { color: "#78c878", weight: 14, opacity: 0.28 }).addTo(leafletMap);
+    L.polyline(meas, { color: "#2a6db5", weight: 3.5, opacity: 1  }).addTo(leafletMap);
+  }
+  if (postMeas.length > 1)
+    L.polyline(postMeas, { color: "#1a1a1a", weight: 2.5, opacity: 0.75 }).addTo(leafletMap);
+
+  const measStart = meas.length > 0 ? meas[0]             : validPts[0];
+  const measEnd   = meas.length > 0 ? meas[meas.length-1] : validPts[nv-1];
+
+  L.circleMarker(measStart, {
+    radius: 8, color: "#185518", fillColor: "#2a9a2a", fillOpacity: 1, weight: 2
+  }).bindPopup("Meas. start -- " + d_max + " m from fixture").addTo(leafletMap);
+
+  L.circleMarker(measEnd, {
+    radius: 8, color: "#7a1818", fillColor: "#c0392b", fillOpacity: 1, weight: 2
+  }).bindPopup("Meas. end -- " + d_min + " m from fixture").addTo(leafletMap);
+
+  // Test Fixture is at closest approach -- the measEnd point (15 m from fixture)
+  // is the last measurement sample, so the fixture itself is at measEnd
+  L.marker(measEnd, {
+    icon: L.divIcon({
+      className: "",
+      html: '<div style="background:#1a1a1a;color:#fff;font-size:11px;font-weight:700;padding:3px 8px;border-radius:3px;white-space:nowrap;">Test Fixture</div>',
+      iconAnchor: [40, 10]
+    })
+  }).addTo(leafletMap);
+
+  // Single legend -- remove previous before adding
+  if (window._mapLegend) { window._mapLegend.remove(); window._mapLegend = null; }
+  const legend = L.control({ position: "bottomright" });
+  legend.onAdd = () => {
+    const d = L.DomUtil.create("div");
+    d.style.cssText = "background:#fff;padding:9px 12px;border-radius:4px;font-size:11px;border:1px solid #ccc;line-height:2;min-width:230px;";
+    d.innerHTML = `<strong>FMVSS 108 Sc${m.scenario} -- ${m.vehicle}</strong><br>
+      <span style="display:inline-block;width:16px;height:3px;background:#1a1a1a;vertical-align:middle;margin-right:6px;"></span>Outside measurement range<br>
+      <span style="display:inline-block;width:16px;height:3px;background:#2a6db5;vertical-align:middle;margin-right:6px;"></span>Measurement segment (${d_min}-${d_max} m)<br>
+      <span style="display:inline-block;width:16px;height:8px;background:#78c878;opacity:0.45;vertical-align:middle;margin-right:6px;"></span>+/-0.5 m path tolerance<br>
+      <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#2a9a2a;vertical-align:middle;margin-right:6px;"></span>Meas. start (${d_max} m)<br>
+      <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#c0392b;vertical-align:middle;margin-right:6px;"></span>Meas. end / Test Fixture (~${d_min} m)`;
+    return d;
+  };
+  legend.addTo(leafletMap);
+  window._mapLegend = legend;
+
+  // Fit to measurement segment only
+  const fitPts = meas.length > 1 ? meas : validPts;
+  setTimeout(() => {
+    leafletMap.invalidateSize();
+    leafletMap.fitBounds(L.latLngBounds(fitPts).pad(0.30));
+  }, 150);
+}
+
+function closeMap() {
+  document.getElementById("map-overlay").classList.remove("open");
+}
+document.getElementById("map-overlay").addEventListener("click", e => {
+  if (e.target === document.getElementById("map-overlay")) closeMap();
+});
+
+document.getElementById("print-date").textContent =
+  new Date().toLocaleDateString("en-US", { year:"numeric", month:"long", day:"numeric" });
+</script>
+</body>
+</html>
