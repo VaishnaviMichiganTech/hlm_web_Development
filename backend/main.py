@@ -9,6 +9,7 @@ from routes import recorder
 from routes import logger_view
 from routes import records_browser
 from routes import config_editor
+from routes import report #v
 
 
 
@@ -43,6 +44,7 @@ app.include_router(recorder.router, prefix="/api/record")
 app.include_router(logger_view.router, prefix="/api/logger")
 app.include_router(records_browser.router, prefix="/api/records")
 app.include_router(config_editor.router, prefix="/api")
+app.include_router(report.router, prefix="/api/records") #v
 
 @app.get("/")
 def root():

@@ -171,12 +171,16 @@ function FolderBrowser() {
                           {folder.result || "--"}
                         </div>
 
-                        <div style={{ width: "150px", display: "flex", gap: "8px", justifyContent: "flex-end" }}>
-                          <button onClick={() => setPath(fullPath)} style={browserStyles.actionBtn}>Open</button>
-                          <a href={`${backendUrl}/api/records/download-folder?path=${encodeURIComponent(fullPath)}`}>
-                            <button style={browserStyles.actionBtn}>Zip</button>
-                          </a>
-                        </div>
+                        <div style={{ width: "210px", display: "flex", gap: "8px", justifyContent: "flex-end" }}>
+  <button onClick={() => setPath(fullPath)} style={browserStyles.actionBtn}>Open</button>
+  <a href={`${backendUrl}/api/records/download-folder?path=${encodeURIComponent(fullPath)}`}>
+    <button style={browserStyles.actionBtn}>Zip</button>
+  </a>
+  <a href={`${backendUrl}/api/records/report?path=${encodeURIComponent(fullPath)}`}
+     target="_blank" rel="noopener noreferrer">
+    <button style={browserStyles.actionBtn}>Report</button>
+  </a>
+</div>
                       </li>
                     );
                   })}

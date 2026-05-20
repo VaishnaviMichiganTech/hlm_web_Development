@@ -632,6 +632,11 @@ class TestPostProcess:
         if self.meta:
             self.meta['result'] = ret.code.name
         self.save_meta()
+        try: #v
+            from nodes.adb_postprocess_ import run_adb_report
+            run_adb_report(root, meta=self.meta)
+        except Exception as e:
+            logger.logger.error(f"ADB report failed: {e}") #v
         return
 
 if __name__ == '__main__':
