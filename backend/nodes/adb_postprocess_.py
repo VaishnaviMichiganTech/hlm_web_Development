@@ -291,6 +291,15 @@ def run_adb_report(root, meta=None, scenario=None, vehicle="Unknown",
         with open(root / "metadata.json", "w") as f:
             json.dump(meta, f, indent=2, default=str)
         print(f"\n  ADB: {meta['adb_result']}  →  {meta['adb_report']}")
+
+    # Copy report template into adb_result so it can be served directly
+    import shutil as _shutil
+    _html_src = pathlib.Path(__file__).parent.parent.parent / "adb_report_v3.html"
+    if _html_src.exists():
+        _shutil.copy(_html_src, pathlib.Path(outdir) / "adb_report_v3.html")
+    else:
+        print(f"  WARNING: adb_report_v3.html not found at {_html_src}")
+
     return report
 
 
